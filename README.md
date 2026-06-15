@@ -1,10 +1,11 @@
 # Confidence-Driven Inference Tutorial
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/sonal-ssj/cdi-tutorial/blob/colab_support/tutorial_version_1_adaptive.ipynb)
+**Tutorial 1 (adaptive):** [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/sonal-ssj/cdi-tutorial/blob/colab_support/tutorial_version_1_adaptive.ipynb)
 
-Click the badge to open the tutorial in Google Colab. The notebook's first
-setup cell clones this repo and installs dependencies automatically — just run
-it, then add your `GROQ_API_KEY` in the Colab **Secrets** panel.
+Click the badge to open **Tutorial 1 (`tutorial_version_1_adaptive.ipynb`)** in
+Google Colab. The notebook's first setup cell clones this repo and installs
+dependencies automatically — just run it, then add your `GROQ_API_KEY` in the
+Colab **Secrets** panel.
 
 ## What this tutorial does
 The Jupyter notebook walks you through an **end-to-end, automated human-AI annotation pipeline** based on **Confidence-Driven Inference (CDI)**. We collect human annotations via **Prolific** or **Amazon Mechanical Turk**, and LLM annotations through either **Groq** or **OpenAI** (selectable with a single `PROVIDER` switch). The example is based on the method introduced in:
