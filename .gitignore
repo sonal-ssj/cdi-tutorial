@@ -1,3 +1,8 @@
+.env
+.claude
+docs
+checkpoints/
+.gitignore
 data/.DS_Store
 utils/.ipynb_checkpoints/prolific-checkpoint.py
 utils/.ipynb_checkpoints/qualtrics-checkpoint.py
@@ -33,6 +38,5 @@ utils/.ipynb_checkpoints/inference-checkpoint.py
 .ipynb_checkpoints/tutorial_version_1new_adaptive_pre-collected_labels-checkpoint.ipynb
 .ipynb_checkpoints/tutorial_version_1_high-level_pre-collected_labels-checkpoint.ipynb
 .DS_Store
-credentials.txt
 credentials.txt
 .ipynb_checkpoints/credentials-checkpoint.txt

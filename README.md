@@ -1,7 +1,7 @@
 # Confidence-Driven Inference Tutorial
 
 ## What this tutorial does
-The Jupyter notebook walks you through an **end-to-end, automated human-AI annotation pipeline** based on **Confidence-Driven Inference (CDI)**. We collect human annotations via **Prolific** or **Amazon Mechanical Turk**, and LLM annotations through **OpenAI**'s API. The example is based on the method introduced in:
+The Jupyter notebook walks you through an **end-to-end, automated human-AI annotation pipeline** based on **Confidence-Driven Inference (CDI)**. We collect human annotations via **Prolific** or **Amazon Mechanical Turk**, and LLM annotations through either **Groq** or **OpenAI** (selectable with a single `PROVIDER` switch). The example is based on the method introduced in:
 
 Can Unconfident LLM Annotations Be Used for Confident Conclusions? Kristina Gligorić*, Tijana Zrnic*, Cinoo Lee*, Emmanuel Candès, and Dan Jurafsky. NAACL, 2025.  
 https://aclanthology.org/2025.naacl-long.179/#
@@ -26,8 +26,9 @@ Although the example focuses on detecting *politeness* and estimating these two 
 
 | Section | Purpose |
 |---------|---------|
+| **Colab setup** | Installs the LLM client libraries (`openai`, `python-dotenv`). Run this first on Google Colab; skip it when running locally from `requirements.txt`. |
 | **Import libraries** | Loads scientific stack (`numpy`, `scipy`, `pandas`, `tqdm`, Qualtrics/Prolific/MTURK helpers, and `openai` for LLM calls). |
-| **Parameter blocks** | Separate cells let you tune *CDI hyper-parameters*, *LLM sampling settings*, and *human‑annotation settings* (batch size, budget, etc.). |
+| **Parameter blocks** | Separate cells let you tune *CDI hyper-parameters*, *LLM sampling settings* (including the `PROVIDER` switch for Groq vs OpenAI and the model name), and *human‑annotation settings* (batch size, budget, etc.). |
 | **Step&nbsp;1 – LLM annotation** | Loads a CSV of raw texts (`data/politeness_dataset.csv`), queries the LLM for a label & confidence for each row, and stores results in the working `data` frame. |
 | **Step&nbsp;2 – Initial human labels** | Publishes the first batch of texts to Prolific or MTURK, waits for responses, and merges them back into `data`. Initialize the sampling rule to obtain per‑item selection probabilities. |
 | **Step&nbsp;3 – Iterative sampling loop** | For each batch: choose texts with highest CDI scores → post new survey → ingest responses → update CDI state. |
@@ -40,14 +41,19 @@ Although the example focuses on detecting *politeness* and estimating these two 
 
 ```
 project/
-├── tutorial_version_1.ipynb
-├── tutorial_version_2.ipynb
+├── tutorial_version_1_adaptive.ipynb
+├── tutorial_version_2_non-adaptive.ipynb
+├── groq_api_colab.ipynb    # standalone guide for getting/using a Groq API key
 ├── data/
 │   └── politeness_dataset.csv
-├── utils/                  # helper modules (e.g., survey API wrappers, inference modules)
-|── requirements.txt
-|── credentials.txt
-└── README.md               
+├── utils/                  # helper modules
+│   ├── config.py           # loads LLM API keys (Colab Secrets / .env / credentials.txt)
+│   ├── llms.py             # provider-agnostic LLM client (Groq or OpenAI)
+│   └── ...                 # survey API wrappers, inference modules
+├── requirements.txt
+├── credentials.txt         # human-annotation keys (AWS/Qualtrics/Prolific); git-ignored
+├── .env.example            # template for LLM API keys; copy to .env and fill in
+└── README.md
 ```
 
 ---
@@ -64,25 +70,96 @@ This repository includes five versions of a tutorial:
 
 ---
 
-## Requirements & setup
+## Setup & run
 
-1. **Python ≥ 3.9**  
-2. Install dependencies:
+You can run the tutorial **locally** or on **Google Colab**. Both need an API
+key — see [API keys](#api-keys-env-and-colab-secrets) below for details.
+
+### Option A — Local (VSCode)
+
+1. **Python ≥ 3.9.**
+2. **Create a virtual environment and install dependencies:**
+
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # or venv\Scripts\activate on Windows
+   pip install -r requirements.txt
+   ```
+
+3. **Add your API key:** copy the template and fill it in (see [API keys](#api-keys-env-and-colab-secrets)):
+
+   ```bash
+   cp .env.example .env
+   # edit .env and set GROQ_API_KEY (or OPENAI_API_KEY)
+   ```
+
+4. **Open the notebook in VSCode** and **select the venv as the kernel** — use the
+   kernel picker in the top-right and choose the `./venv` interpreter. Then run
+   the cells top-to-bottom. You can skip the **Colab setup** cell at the top —
+   it's only needed on Colab.
+
+### Option B — Google Colab
+
+1. Open the notebook in Colab (upload it, or **File ▸ Open notebook ▸ GitHub**).
+2. Run the **Colab setup** cell at the top to install the LLM client libraries.
+3. Add your API key via the **Secrets** panel (see [API keys](#api-keys-env-and-colab-secrets)).
+4. Run the cells top-to-bottom.
+
+---
+
+## API keys (`.env` and Colab Secrets)
+
+The LLM API key is resolved by `utils/config.py` (`load_llm_api_key(PROVIDER)`),
+which looks in three places, in order:
+
+1. **Colab Secrets** — when running on Google Colab.
+2. **`.env`** file — when running locally (read via `python-dotenv`).
+3. **`credentials.txt`** — the repository's original convention (fallback).
+
+This applies to **all** keys — the LLM key (`GROQ_API_KEY` for Groq,
+`OPENAI_API_KEY` for OpenAI) **and** the human-annotation keys
+(`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `QUALTRICS_API_KEY`,
+`QUALTRICS_API_URL`, `PROLIFIC_API_KEY`). Get a Groq key at
+[console.groq.com](https://console.groq.com) (free tier, no card needed); see
+`groq_api_colab.ipynb` for a step-by-step walkthrough.
+
+**Local (`.env`):**
 
 ```bash
-python -m venv venv
-source venv/bin/activate  # or venv\Scripts\activate on Windows
-pip install -r requirements.txt
+cp .env.example .env
+# then edit .env and fill in the key(s) you need, e.g.:
+#   GROQ_API_KEY=gsk_...
+#   PROLIFIC_API_KEY=...
 ```
 
-## How to run
+`.env` is git-ignored, so your keys are never committed. The human-annotation
+keys are only needed when `COLLECT_HUMAN = True`; leave them blank otherwise.
 
-```bash
-jupyter notebook
-# open tutorial.ipynb and run cells top‑to‑bottom
-```
+**Google Colab (Secrets):**
 
-- **Dry‑run mode:** Keep `COLLECT_LLM = False` and `COLLECT_HUMAN = False` in the parameter cells to skip external API calls while you familiarize yourself with the flow.  
+1. Open the **Secrets** panel (key icon in the left sidebar).
+2. Add a secret named exactly `GROQ_API_KEY` (or any other key name above) and paste its value.
+3. Toggle **Notebook access** on for that secret.
+
+> `credentials.txt` still works as a final fallback for backwards compatibility,
+> but `.env` (or Colab Secrets) is now the recommended place for all keys.
+
+---
+
+## Notebook settings (both options)
+
+Once the notebook is open and the cells are running, these settings control its behavior:
+
+- **Choosing the LLM backend:** Set `PROVIDER = "groq"` or `PROVIDER = "openai"`
+  in the LLM-annotation parameter cell. The model and API key follow automatically
+  (edit `MODEL_BY_PROVIDER` to change models). Groq deprecates models periodically —
+  if a call fails with an invalid-model error, run
+  `get_client(PROVIDER, LLM_API_KEY).models.list()` to see what's live.
+- **Live vs. pre-collected:** Set `COLLECT_LLM = True` to query the LLM live, or
+  `False` to load the pre-collected `gpt-4o` labels shipped in the dataset.
+- **Dry‑run mode:** Keep `COLLECT_LLM = False` and `COLLECT_HUMAN = False` in the
+  parameter cells to skip all external API calls while you familiarize yourself
+  with the flow.  
 
 ---
 
@@ -98,7 +175,7 @@ jupyter notebook
 - Swap in your own dataset with **`Text`** and **feature column(s)**.  
 - Update the `mapping_categories` dict to match your label set.  
 - Tweak `burnin_steps`, `batch_size`, and `budget` to suit annotation cost constraints.  
-- Plug in a different LLM prompt or model name to target alternative tasks.
+- Plug in a different LLM prompt, provider (`PROVIDER`), or model name to target alternative tasks.
 
 ---
 

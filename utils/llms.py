@@ -1,8 +1,26 @@
 import openai
+from openai import OpenAI
 import pandas as pd
 from tqdm.notebook import tqdm
 import numpy as np
 import time
+import random
+
+# Base URLs for supported providers. Groq exposes an OpenAI-compatible API,
+# so the same openai client works for both by just swapping the base URL.
+PROVIDER_BASE_URLS = {
+    "openai": "https://api.openai.com/v1",
+    "groq": "https://api.groq.com/openai/v1",
+}
+
+
+def get_client(provider, api_key):
+    """Build an OpenAI-compatible client for the given provider."""
+    if provider not in PROVIDER_BASE_URLS:
+        raise ValueError(
+            f"Unknown provider '{provider}'. Expected one of {list(PROVIDER_BASE_URLS)}."
+        )
+    return OpenAI(api_key=api_key, base_url=PROVIDER_BASE_URLS[provider])
 
 def retry_with_exponential_backoff(
     func,
@@ -47,13 +65,13 @@ def retry_with_exponential_backoff(
  
     return wrapper
 
-def annotate_texts_with_llm(texts, model, prompt, mapping_categories, sleep, temperature, OPENAI_API_KEY):
+def annotate_texts_with_llm(texts, model, prompt, mapping_categories, sleep, temperature, LLM_API_KEY, provider="openai"):
+    client = get_client(provider, LLM_API_KEY)
+
     @retry_with_exponential_backoff
     def completions_with_backoff(**kwargs):
-        return openai.chat.completions.create(**kwargs)
+        return client.chat.completions.create(**kwargs)
 
-    openai.api_key = OPENAI_API_KEY
-    
     sample_texts = pd.DataFrame()
     sample_texts['Text'] = texts
     
@@ -88,13 +106,13 @@ def annotate_texts_with_llm(texts, model, prompt, mapping_categories, sleep, tem
 
     return sample_texts
 
-def collect_llm_confidence(sample_texts, model, sleep, temperature, OPENAI_API_KEY):
+def collect_llm_confidence(sample_texts, model, sleep, temperature, LLM_API_KEY, provider="openai"):
+    client = get_client(provider, LLM_API_KEY)
+
     @retry_with_exponential_backoff
     def completions_with_backoff(**kwargs):
-        return openai.chat.completions.create(**kwargs)
-    
-    openai.api_key = OPENAI_API_KEY
-    
+        return client.chat.completions.create(**kwargs)
+
     prompt_part_1 = "How likely is it that the following text is "
 
     prompt_part_2 = """?\nOutput the probability only (a number between 0 and 1).
@@ -135,7 +153,8 @@ def get_llm_annotations(df, text_based_feature, COLLECT_LLM, llm_parameters,  N,
     mapping_categories = llm_parameters["mapping_categories"]
     sleep = llm_parameters["sleep"]
     temperature = llm_parameters["temperature"]
-    OPENAI_API_KEY = llm_parameters["OPENAI_API_KEY"]
+    LLM_API_KEY = llm_parameters["LLM_API_KEY"]
+    provider = llm_parameters.get("provider", "openai")
     positive_class = llm_parameters["positive_class"]
     
     
@@ -155,16 +174,23 @@ def get_llm_annotations(df, text_based_feature, COLLECT_LLM, llm_parameters,  N,
                                                mapping_categories=mapping_categories,
                                                sleep=sleep,
                                                temperature=temperature,
-                                               OPENAI_API_KEY=OPENAI_API_KEY)
+                                               LLM_API_KEY=LLM_API_KEY,
+                                               provider=provider)
         # collect verbalized confidence
         sample_texts = collect_llm_confidence(sample_texts=sample_texts,
                                               model=model,
                                               sleep=sleep,
                                               temperature=temperature,
-                                              OPENAI_API_KEY=OPENAI_API_KEY)
+                                              LLM_API_KEY=LLM_API_KEY,
+                                              provider=provider)
 
-        data['llm'] = sample_texts['LLM_annotation'].apply(lambda x: 1 if x.lower() == positive_class.lower() else 0).values
-        data['llm_conf'] = sample_texts['confidence_in_prediction']
+        # sample_texts may have fewer rows than data: rows whose LLM output was
+        # not a valid category get dropped during annotation. Assign by the
+        # original (preserved) index so positions stay aligned; dropped rows
+        # keep their initialized NaN.
+        llm_labels = sample_texts['LLM_annotation'].apply(lambda x: 1 if x.lower() == positive_class.lower() else 0)
+        data.loc[sample_texts.index, 'llm'] = llm_labels.values
+        data.loc[sample_texts.index, 'llm_conf'] = sample_texts['confidence_in_prediction'].values
     else:
         # load the existing annotations we already collected
         df['Prediction_gpt-4o'] = pd.read_csv('data/politeness_dataset.csv')['Prediction_gpt-4o'].sample(n=N, random_state=random_state).values
