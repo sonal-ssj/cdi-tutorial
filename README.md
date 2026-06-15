@@ -1,6 +1,6 @@
 # Confidence-Driven Inference Tutorial
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/sonal-ssj/cdi-tutorial/blob/main/tutorial_version_1_adaptive.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/sonal-ssj/cdi-tutorial/blob/colab_support/tutorial_version_1_adaptive.ipynb)
 
 Click the badge to open the tutorial in Google Colab. The notebook's first
 setup cell clones this repo and installs dependencies automatically — just run
@@ -107,7 +107,7 @@ key — see [API keys](#api-keys-env-and-colab-secrets) below for details.
 ### Option B — Google Colab
 
 1. Click the **Open In Colab** badge at the top of this README (or use **File ▸ Open notebook ▸ GitHub** in Colab).
-2. Run the **Setup** cell at the top — it clones this repo (so `utils/` and `data/` are available) and installs `requirements.txt`.
+2. Run the **Setup** cell at the top — it clones this repo (so `utils/` and `data/` are available) and installs `requirements-core.txt` (a minimal, Colab-friendly dependency set).
 3. Add your API key via the **Secrets** panel (see [API keys](#api-keys-env-and-colab-secrets)).
 4. Run the cells top-to-bottom.
 
